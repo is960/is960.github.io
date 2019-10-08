@@ -1,0 +1,826 @@
+字符串匹配（哈希）
+//times为出现次数,s1_hash表示a的前缀哈希值,s2_hash表示b的哈希值
+#include <iostream>
+using namespace std;
+unsigned long s1_hash[1000010]={1},s2_hash,ls1,ls2,f=1,times;
+string a,b;
+int main() {
+    cin>>a>>b;
+    ls1=a.size(),ls2=b.size();
+    if(a.substr(0,ls2)==b){
+        cout<<1<<endl;
+        times++;
+    }
+    for(int i=1;i<ls1;i++) s1_hash[i]=s1_hash[i-1]*233+a[i];
+    for(int i=0;i<ls2;i++) f*=233;
+    for(int i=0;i<ls2;i++) s2_hash=s2_hash*233+b[i];
+    for(int i=1;i<ls1-ls2+1;i++)
+        if(s2_hash==s1_hash[i+ls2-1]-s1_hash[i-1]*f) {
+            cout<<i+1<<endl;
+            times++;
+        }
+    if(!times) cout<<"no";
+}
+字符串匹配（KMP）
+//ans为出现次数,nxt为next数组
+cin>>a+1>>b+1;
+n=strlen(a+1),m=strlen(b+1);
+for(int i=1;i<m;i++){
+    while(j>0&&b[i+1]!=b[j+1]) j=nxt[j];
+    if(b[i+1]==b[j+1]) j++;
+    nxt[i+1]=j;
+}
+j=0; 
+for(int i=0;i<n;i++){
+    while(j>0&&a[i+1]!=b[j+1]) j=nxt[j];
+    if(a[i+1]==b[j+1]) j++;
+    if(j==m){
+        cout<<i-m+2<<endl;
+        ans++,j=nxt[j];
+    } 
+}
+if(!ans) cout<<"no"; 
+树状数组
+单点修改，区间求和
+
+int lowbit(int x){return x&(-x);}  //求x的最低二进制位
+void update(int x,int v){  //把下标为x的数值加上v
+    while(x<=n){
+        tree[x]+=v;
+        x+=lowbit(x);
+    }
+}
+int cal(int x){ //计算从0至x的和
+    int ans=0;
+    while(x){
+        ans+=tree[x];
+        x-=lowbit(x);
+    }
+    return ans;
+}
+线段树 - 01
+单点修改，可求区间最大值、区间最小值、区间和
+
+struct node{ //定义线段树
+    int lchild,rchild,sum,maxn,minn;
+}tree[5000005];
+inline void sum_update(int root){ //和更新
+    tree[root].sum=tree[root<<1].sum+tree[(root<<1)|1].sum;
+}
+inline void max_update(int root){ //最大值更新
+    tree[root].maxn=max(tree[root<<1].maxn,tree[(root<<1)|1].maxn);
+}
+inline void min_update(int root){ //最小值更新
+    tree[root].minn=min(tree[root<<1].minn,tree[(root<<1)|1].minn);
+}
+void build(int a[],int root,int lchild,int rchild){ 
+    //建树，a为建树时的数组，用法：build(a,1,1,n)
+    tree[root].lchild=lchild,tree[root].rchild=rchild;
+    if(lchild==rchild){
+        tree[root].sum=a[lchild];
+        tree[root].maxn=a[lchild];
+        tree[root].minn=a[lchild];
+        return;
+    }
+    const int mid=(lchild+rchild)>>1;
+    build(a,root<<1,lchild,mid);
+    build(a,root<<1|1,mid+1,rchild);
+    sum_update(root);
+    max_update(root);
+    min_update(root);
+}
+void add(int root,int index,int value){ 
+    //把某个元素加value，用法：add(1,x,y)
+    if(tree[root].lchild==index&&tree[root].rchild==index){
+        tree[root].sum+=value;
+        tree[root].maxn+=value;
+        tree[root].minn+=value;
+        return;
+    }
+    const int mid=(tree[root].lchild+tree[root].rchild)>>1;
+    if(index<=mid) add(root<<1,index,value);
+    else add(root<<1|1,index,value);
+    sum_update(root); 
+    max_update(root);
+    min_update(root);
+}
+void change(int root,int index,int value){ 
+    //把某个元素更改为value，用法：change(1,x,y)
+    if(tree[root].lchild==index&&tree[root].rchild==index){
+        tree[root].sum=value;
+        tree[root].maxn=value;
+        tree[root].minn=value;
+        return;
+    }
+    const int mid=(tree[root].lchild+tree[root].rchild)>>1;
+    if(index<=mid) change(root<<1,index,value);
+    else change(root<<1|1,index,value);
+    sum_update(root); 
+    max_update(root);
+    min_update(root);
+}
+int query_sum(int root,int lchild,int rchild){ 
+    //区间求和，用法：query_sum(1,x,y)
+    if(tree[root].lchild==lchild&&tree[root].rchild==rchild){
+        return tree[root].sum;
+    }
+    const int mid=(tree[root].lchild+tree[root].rchild)>>1;
+    if(rchild<=mid) return query_sum(root<<1,lchild,rchild);
+    else if(lchild>mid) return query_sum(root<<1|1,lchild,rchild);
+    else return query_sum(root<<1,lchild,mid)+query_sum(root<<1|1,mid+1,rchild);
+}
+int query_max(int root,int qlbound,int qrbound){ 
+    //区间求最大值，用法：query_max(1,x,y)
+    if(tree[root].lchild==qlbound&&tree[root].rchild==qrbound){
+        return tree[root].maxn;
+    }
+    const int mid=(tree[root].lchild+tree[root].rchild)>>1;
+    if(qrbound<=mid) return query_max(root<<1,qlbound,qrbound);
+    else if(qlbound>mid) return query_max(root<<1|1,qlbound,qrbound);
+    else return max(query_max(root<<1,qlbound,mid),query_max(root<<1|1,mid+1,qrbound));
+}
+int query_min(int root,int qlbound,int qrbound){ 
+    //区间求最小值，用法：query_min(1,x,y)
+    if(tree[root].lchild==qlbound&&tree[root].rchild==qrbound){
+        return tree[root].minn;
+    }
+    const int mid=(tree[root].lchild+tree[root].rchild)>>1;
+    if(qrbound<=mid) return query_min(root<<1,qlbound,qrbound);
+    else if(qlbound>mid) return query_min(root<<1|1,qlbound,qrbound);
+    else return min(query_min(root<<1,qlbound,mid),query_min(root<<1|1,mid+1,qrbound));
+}
+线段树 - 02 （标记下传）
+区间修改，可求区间和
+
+struct tree {
+    long long lbound,rbound,sum,addsum;
+}tree[500005];
+void build(long long node,long long lbound,long long rbound) {
+    //建树，a为建树时的数组，用法：build(1,1,n)
+    tree[node].lbound=lbound;
+    tree[node].rbound=rbound;
+    if(lbound==rbound) {
+        tree[node].sum=a[lbound];
+        return;
+    }
+    long long mid=lbound+rbound>>1;
+    build(node<<1,lbound,mid);
+    build(node<<1|1,mid+1,rbound);
+    tree[node].sum=tree[node<<1].sum+tree[node<<1|1].sum;
+}
+void push_down(long long node) {
+    //addsum标记下传
+    if(tree[node].addsum) {
+        tree[node<<1].sum+=tree[node].addsum*(tree[node<<1].rbound-tree[node<<1].lbound+1);
+        tree[node<<1|1].sum+=tree[node].addsum*(tree[node<<1|1].rbound-tree[node<<1|1].lbound+1);
+        tree[node<<1].addsum+=tree[node].addsum;
+        tree[node<<1|1].addsum+=tree[node].addsum;
+        tree[node].addsum=0;
+    }
+}
+void add(long long node,long long lbound,long long rbound,long long value) {
+    //把某一段元素加value，用法：add(1,l,r,value)
+    if(lbound<=tree[node].lbound && rbound>=tree[node].rbound) {
+        tree[node].sum+=value*(tree[node].rbound-tree[node].lbound+1);
+        tree[node].addsum+=value;
+        return;
+    }
+    push_down(node);
+    long long mid=tree[node].lbound+tree[node].rbound>>1;
+    if(lbound<=mid) add(node<<1,lbound,rbound,value);
+    if(rbound>mid) add(node<<1|1,lbound,rbound,value);
+    tree[node].sum=tree[node<<1].sum+tree[node<<1|1].sum;
+}
+long long ask(long long node,long long lbound,long long rbound) {
+    //区间求和，用法：ask(1,x,y)
+    if(lbound<=tree[node].lbound&&rbound>=tree[node].rbound) return tree[node].sum;
+    push_down(node);
+    const long long mid=tree[node].lbound+tree[node].rbound>>1;
+    long long ans=0;
+    if(lbound<=mid) ans+=ask(node<<1,lbound,rbound);
+    if(rbound>mid) ans+=ask(node<<1|1,lbound,rbound);
+    return ans;
+}
+AC自动机 - 01
+一个主串，多个模式串，求模式串在主串里共出现次数
+
+//插入字符串
+void insert(int map[1000005][26],int flag[],int &tot,char *s) {
+    int len=strlen(s),now=0;
+    for(register int i=0; i<len; i++) {
+        const int ch=s[i]-'a';
+        if(!map[now][ch]) map[now][ch]=++tot;
+        now=map[now][ch];
+    }
+    flag[now]++;
+}
+//构建fail指针
+void build(int map[1000005][26],int fail[],queue<int>&q) {
+    for(int i=0;i<26;i++) if(map[0][i]) fail[map[0][i]]=0,q.push(map[0][i]);
+    while(!q.empty()) {
+        register int u=q.front();q.pop();
+        for(int i=0; i<26; i++){
+            if(map[u][i]) fail[map[u][i]]=map[fail[u]][i],q.push(map[u][i]);
+            else map[u][i]=map[fail[u]][i];
+        }
+    }
+}
+//查找出现次数
+int find(int map[1000005][26],int flag[],int fail[],char *s) {
+    int len=strlen(s),now=0,ans=0;
+    for(register int i=0; i<len; i++) {
+        now=map[now][s[i]-'a'];
+        for(register int t=now; t&&flag[t]!=-1; t=fail[t]) ans+=flag[t],flag[t]=-1;
+    }
+    return ans;  //出现次数
+}
+大根堆（STL）
+priority_queue<int>heap; //定义大根堆
+
+heap.top();//取得堆顶元素，并不会弹出
+heap.pop();//弹出堆顶元素
+heap.push(-1);//往堆里面插入一个元素
+heap.empty();//查询堆是否为空，为空则返回1否则返回0
+heap.size();//查询堆内元素数量
+小根堆（STL）
+priority_queue<int,vector<int>,greater<int>>heap; //定义小根堆 
+
+heap.top();//取得堆顶元素，并不会弹出
+heap.pop();//弹出堆顶元素
+heap.push(-1);//往堆里面插入一个元素
+heap.empty();//查询堆是否为空，为空则返回1否则返回0
+heap.size();//查询堆内元素数量
+链表
+struct tnode{ //递归定义链表 用法：tnode *x=new tnode;
+    tnode*next;
+    int value;
+};
+void _insert(tnode*p,int v){ //插入一个元素
+    tnode*node=new tnode;
+    node->value=v;
+    node->next=p->next;
+    p->next=node;
+}
+void _delete(tnode*p){ //删除一个元素
+    p->value=p->next->value;
+    p->next=p->next->next;
+}
+Trie
+void insert(bool flag[],int&cnt,int tree[800005][101],string str){
+    /*
+     cnt: 字典树节点个数 
+     flag: 字符串结尾标记 
+    */
+    int len=str.size(),node=1;
+    for(int i=0;i<len;i++){
+        int ch=str[i]-'a';
+        if(!tree[node][ch]) tree[node][ch]=++cnt;
+        node=tree[node][ch];
+    }
+    flag[node]=1;
+}
+bool find(bool flag[],int&cnt,int tree[800005][101],string str){
+    /*
+    cnt: 字典树节点个数 
+    flag: 字符串结尾标记 
+
+    Return Value List:
+     >  0:EXIST
+     >  1:NONE
+    */ 
+    int len=str.size(),node=1;
+    for(int i=0;i<len;i++){
+        int ch=str[i]-'a';
+        if(!tree[node][ch]) return 1;
+        else node=tree[node][ch];
+    }
+    if(flag[node]){
+        return 0;
+    }
+    return 1;
+}
+Floyd
+//n为顶点数,m为边数,xx为起点编号,yy为终点编号
+xx--,yy--; //如节点编号从0开始可以删去这行
+for(int i=0; i<n; i++)
+    for(int j=0; j<n; j++)
+        if(i==j) map[i][j]=0;
+        else map[i][j]=9999999; //INF
+for(int i=0; i<m; i++) {
+    cin>>x>>y>>z;
+    x--,y--; //如节点编号从0开始可以删去这行
+    map[x][y]=map[y][x]=z; //无向图，邻接矩阵
+}
+for(int k=0; k<n; k++)
+    for(int i=0; i<n; i++)
+        for(int j=0; j<n; j++)
+            if(map[i][k]<9999999&&map[k][j]<9999999&&map[i][j]>map[i][k]+map[k][j])
+                map[i][j]=map[i][k]+map[k][j];
+//map[xx-1][yy-1]是最短路长度
+SPFA
+//point为顶点数,line为边数,start为起点编号,stop为终点编号
+start--,stop--; //如节点编号从0开始可以删去这行
+for(int i=0; i<line; i++) {
+    cin>>x>>y>>z;
+    x--,y--; //如节点编号从0开始可以删去这行
+    map[x][y]=map[y][x]=z; //无向图，邻接矩阵
+}
+memset(dis,0x7f,sizeof(dis));
+dis[start]=0;
+tail=1;
+que[1]=start;
+while(head!=tail) {
+    head++;
+    for(int i=0; i<point; i++) {
+        if(map[i][que[head]]&&dis[i]>dis[que[head]]+map[i][que[head]]) {
+            dis[i]=dis[que[head]]+map[i][que[head]];
+            if(!in[i]) {
+                que[++tail]=i;
+                in[i]=1;
+            }
+        }
+        in[que[head]]=0;
+    }
+}
+//dis[stop]是最短路长度
+STL - Set
+int arr[5]={75,23,65,42,13};
+set<int>x(arr,arr+5);           //定义
+
+x.begin();            //返回指向第一个元素的迭代器
+x.end();              //返回指向最后一个元素的迭代器
+x.clear();            //清除所有元素
+x.count();            //返回某个值元素的个数
+x.empty();            //如果集合为空，返回true
+x.equal_range();      //返回集合中与给定值相等的上下限的两个迭代器
+x.erase();            //删除集合中的元素
+x.find();             //返回一个指向被查找到元素的迭代器
+x.get_allocator();    //返回集合的分配器
+x.insert();           //在集合中插入元素
+x.lower_bound();      //返回指向大于（或等于）某值的第一个元素的迭代器
+x.key_comp();         //返回一个用于元素间值比较的函数
+x.max_size();         //返回集合能容纳的元素的最大限值
+x.rbegin();           //返回指向集合中最后一个元素的反向迭代器
+x.rend();             //返回指向集合中第一个元素的反向迭代器
+x.size();             //集合中元素的数目
+x.swap();             //交换两个集合变量
+x.upper_bound();      //返回大于某个值元素的迭代器
+x.value_comp();       //返回一个用于比较元素间的值的函数
+LCA (倍增)
+//head数组开始要附初值-1
+inline void add(int x,int y){ //连边
+    map[cnt].v=y;
+    map[cnt].next=head[x];
+    head[x]=cnt++;
+}
+void pre(int root,int father){ //预处理，用法：pre(根节点编号,0);
+    dep[root]=dep[father]+1,f[root][0]=father;
+    for(register int i=1;(1<<i)<=dep[root];i++) f[root][i]=f[f[root][i-1]][i-1];
+    for(register int i=head[root];i!=-1;i=map[i].next) if(map[i].v!=father) pre(map[i].v,root);
+}
+inline int get(int x,int y){ //获取LCA值，用法：get(节点1编号,节点2编号);
+    if(dep[x]<dep[y]) swap(x,y);
+    while(dep[x]!=dep[y]) x=f[x][pre_log[dep[x]-dep[y]]-1];
+    if(x==y) return x;
+    for(register int i=pre_log[dep[x]];i>=0;i--) if(f[x][i]!=f[y][i]) x=f[x][i],y=f[y][i];
+    return f[x][0];
+}
+Edmonds-Karp
+void addline(int x,int y,int v){ 
+    //在x和y之间连一条流量为v的边
+    value[++cnt]=y,edge[cnt]=v,nxt[cnt]=head[x],head[x]=cnt;
+    value[++cnt]=x,edge[cnt]=0,nxt[cnt]=head[y],head[y]=cnt;
+}
+bool bfs(int&s,int&t){
+    //s为源点，t为汇点
+    int que[100005],qhead=1,qtail=0;
+    memset(que,0,sizeof(que));
+    memset(inque,0,sizeof(inque));
+    que[qhead++]=s;inque[s]=1;flow[s]=INF;
+    while(qhead^qtail){
+        const int x=que[++qtail];
+        for(register int i=head[x];i^(-1);i=nxt[i]){
+            if(edge[i]){
+                const int v=value[i];
+                if(inque[v]) continue;
+                flow[v]=min(flow[x],edge[i]);
+                pre[v]=i;
+                que[qhead++]=v;inque[v]=1;
+                if(v==t) return 1;
+            }
+        }
+    }
+    return 0;
+}
+void update(int&s,int&t){
+    //s为源点，t为汇点
+    register int x=t;
+    while(x!=s){
+        const int i=pre[x];
+        edge[i]-=flow[t];
+        edge[i^1]+=flow[t];
+        x=value[i^1];
+    }
+    maxflow+=flow[t];
+}
+并查集
+int find(int k) { //找到k的祖先编号
+    if(f[k]==k) return k;
+    return f[k]=find(f[k]);
+}
+int unique(int x,int y){ //把y的祖先设置为x
+    f[find(x)]=find(y);
+}
+Treap
+struct node{
+    int lchild,rchild,value,priority,count,size;
+}treap[100005];
+int memory_pool,root=1;
+inline void _update(int &x){
+    treap[x].size=treap[treap[x].lchild].size+treap[treap[x].rchild].size+treap[x].count;
+}
+inline void _zig(int &x){ //right
+    const int v=treap[x].lchild;
+    treap[x].lchild=treap[v].rchild;
+    treap[v].rchild=x;
+    x=v;
+    _update(treap[x].rchild);
+    _update(x);
+}
+inline void _zag(int &x){ //left
+    const int v=treap[x].rchild;
+    treap[x].rchild=treap[v].lchild;
+    treap[v].lchild=x;
+    x=v;
+    _update(treap[x].lchild);
+    _update(x);
+}
+inline int _new(int value){
+    treap[++memory_pool].value=value;
+    treap[memory_pool].priority=rand();
+    treap[memory_pool].count=treap[memory_pool].size=1;
+    return memory_pool;
+}
+void _insert(int &x,const int value){
+    if(!x){
+        x=_new(value);
+        return;
+    }
+    if(value==treap[x].value){
+        treap[x].count++;
+        _update(x);
+        return;
+    }
+    if(value<treap[x].value){
+        _insert(treap[x].lchild,value);
+        if(treap[x].priority<treap[treap[x].lchild].priority) _zig(x);
+    }
+    else{
+        _insert(treap[x].rchild,value);
+        if(treap[x].priority<treap[treap[x].rchild].priority) _zag(x);
+    }
+    _update(x);
+}
+void _delete(int &x,const int value){
+    if(!x) return;
+    if(value==treap[x].value){
+        if(treap[x].count>1){
+            treap[x].count--;
+            _update(x);
+            return;
+        }
+        if(treap[x].lchild||treap[x].rchild){
+            if(!treap[x].rchild||treap[treap[x].lchild].priority>treap[treap[x].rchild].priority){
+                _zig(x);
+                _delete(treap[x].rchild,value);
+            }
+            else{
+                _zag(x);
+                _delete(treap[x].lchild,value);
+            }
+            _update(x);
+        }
+        else x=0;
+        return;
+    }
+    if(value<treap[x].value) _delete(treap[x].lchild,value);
+    else _delete(treap[x].rchild,value);
+    _update(x);
+}
+inline int _previous(const int value){ //biggest value which lower than *this*
+    register int ans=1,x=root;
+    while(x){
+        if(value==treap[x].value){
+            if(treap[x].lchild){
+                x=treap[x].lchild;
+                while(treap[x].rchild>0) x=treap[x].rchild;
+                ans=x;
+            }
+            break;
+        }
+        if(treap[x].value<value&&treap[x].value>treap[ans].value) ans=x;
+        x=value<treap[x].value?treap[x].lchild:treap[x].rchild;
+    }
+    return treap[ans].value;
+}
+inline int _next(const int value){ //lowest value which bigger than *this*
+    register int ans=2,x=root;
+    while(x){
+        if(value==treap[x].value){
+            if(treap[x].rchild){
+                x=treap[x].rchild;
+                while(treap[x].lchild>0) x=treap[x].lchild;
+                ans=x;
+            }
+            break;
+        }
+        if(treap[x].value>value&&treap[x].value<treap[ans].value) ans=x;
+        x=value<treap[x].value?treap[x].lchild:treap[x].rchild;
+    }
+    return treap[ans].value;
+}
+inline int _get_value(int x,int rank){
+    //用法：_get_value(根节点编号,排名+1)
+    if(!x) return INF;
+    if(treap[treap[x].lchild].size>=rank) return _get_value(treap[x].lchild,rank);
+    if(treap[treap[x].lchild].size+treap[x].count>=rank) return treap[x].value;
+    return _get_value(treap[x].rchild,rank-treap[treap[x].lchild].size-treap[x].count);
+}
+inline int _get_rank(int x,int value){
+    //最后的排名是_get_rank(根节点编号,值)-1
+    if(!x) return 0;
+    if(value==treap[x].value) return treap[treap[x].lchild].size+1;
+    if(value<treap[x].value) return _get_rank(treap[x].lchild,value);
+    return _get_rank(treap[x].rchild,value)+treap[treap[x].lchild].size+treap[x].count;
+}
+inline void _build_treap(){
+    srand(time(0));
+    _new(-INF);_new(INF);
+    treap[root].rchild=2;
+    _update(root);
+}
+高精度类(无符号+不压位)
+const int MPSize=105;
+struct bignum{
+    int len,s[MPSize];
+    bignum(){memset(s,0,sizeof(s));len=1;}
+    bignum(int num){*this=num;}
+    bignum(char *num){*this=num;}
+    bignum operator=(int num){
+        char c[MPSize];
+        sprintf(c,"%d",num);
+        *this=c;
+        return *this;
+    }
+    bignum operator=(const char *num){
+        len=strlen(num);
+        for(register int i=0;i<len;i++) s[i]=num[len-1-i]-'0';
+        return *this;
+    }
+    string str(){
+        string res;
+        for(register int i=0;i<len;i++) res=char(s[i]+'0')+res;
+        return res;
+    }
+    void clear(){
+        while(len>1&&!s[len-1]) len--;
+    }
+    bignum operator+(const bignum &b){
+        bignum c;    
+        c.len=0;
+        for(register int i=0,g=0;g||i<len||i<b.len;i++){
+            int x=g;
+            if(i<len) x+=s[i];
+            if(i<b.len) x+=b.s[i];
+            c.s[c.len++]=x%10;
+            g=x/10;
+        }
+        return c;
+    }
+    bignum operator-(const bignum &b){
+        bignum c;
+        c.len=0;
+        int x;     
+        for(register int i=0,g=0;i<len;i++){
+            x=s[i]-g;
+            if (i<b.len) x-=b.s[i];
+            if (x>=0) g=0;
+            else{          
+                x+=10;
+                g=1;
+            };
+            c.s[c.len++]=x;
+        }
+        c.clear();
+        return c;
+    }
+    bignum operator*(const bignum &b){
+        bignum c;
+        c.len=len+b.len;
+        for(register int i=0;i<len;i++){
+            for(register int j=0;j<b.len;j++){
+                c.s[i+j]+=s[i]*b.s[j];
+            } 
+        } 
+        for(register int i=0;i<c.len-1;i++){ 
+            c.s[i+1]+=c.s[i]/10; 
+            c.s[i]%=10; 
+        }
+        c.clear();
+        return c;  
+    }
+    bool operator<(const bignum &b){
+        if(len!=b.len) return len<b.len;
+        for(register int i=len-1;i>=0;i--) if(s[i]!=b.s[i]) return s[i]<b.s[i];
+        return 0;
+    }
+    bool operator>(const bignum &b){
+        if (len!=b.len) return len>b.len;
+        for(register int i=len-1;i>=0;i--) if(s[i]!=b.s[i]) return s[i]>b.s[i];
+        return 0;
+    }
+    bool operator==(const bignum &b){
+        if(len!=b.len) return 0;
+        for(register int i=len-1;i>=0;i--) if(s[i]!=b.s[i]) return 0;
+        return 1;
+    }
+    bignum operator+=(const bignum &b){
+        *this=*this+b;
+        return *this;
+    }
+    bignum operator-=(const bignum &b){
+        *this=*this-b;
+        return *this;
+    }  
+    bignum operator*=(const bignum &b){
+        *this=(*this)*b;
+        return *this;
+    }  
+    friend bignum pow(bignum a,bignum b){
+        bignum ans=1;
+        for(bignum i=0;i<b;i+=1) ans*=a;
+        return ans;
+    }
+};
+istream& operator>>(istream &in,bignum &x){
+    string s;
+    in>>s;
+    x=s.c_str();
+    return in;
+}
+ostream& operator<<(ostream &out,bignum &x){
+    out<<x.str();
+    return out;
+}
+inline bignum max(bignum a,bignum b){
+    return a>b?a:b;
+}
+inline bignum min(bignum a,bignum b){
+    return a<b?a:b;
+}
+高精度类(无符号+压位)
+const int Size=100,Lbound=0,Rbound=99999;
+struct bignum {
+    int num[Size];
+    bignum(){memset(num,0,sizeof(num));}
+    bignum(int num){*this=num;}
+    bignum(const char *ch){*this=ch;}
+    bool operator<(const bignum &b)const{
+        if(num[0]<b.num[0]) return 1;
+        for(int i=num[0];i>=1;i--){
+            if(num[i]<b.num[i]) return 1;
+            else if(num[i]>b.num[i]) return 0;
+        }
+        return 0;
+    }
+    bool operator>(const bignum &b)const{
+        return b<(*this);
+    }
+    bool operator==(const bignum &b)const{
+        return ((!(b<(*this)))&&(!(b>(*this))));
+    }
+    bool operator<=(const bignum &b)const{
+        return !((*this)>b);
+    }
+    bool operator>=(const bignum &b)const{
+        return !((*this)<b);
+    }
+    bignum operator/(const bignum &b)const{
+        bignum c,d;
+        memset(c.num,0,sizeof(c));
+        memset(d.num,0,sizeof(d));
+        c.num[0]=num[0]+b.num[0]+1;
+        d.num[0]=0;
+        for(int i=num[0];i>=1;i--){
+            memmove(d.num+2,d.num+1,sizeof(d.num)-sizeof(int)*2);
+            d.num[0]++;
+            d.num[1]=num[i];
+            int l=Lbound,r=Rbound;
+            while(l<r){
+                int mid=(l+r)>>1;
+                bignum tmp;
+                tmp=mid;
+                tmp=tmp*b;
+                if(tmp<=d) l=mid+1;
+                else r=mid;
+            }
+            c.num[i]=r-1;
+            bignum tmp;
+            tmp=r-1;
+            tmp=tmp*b;
+            d=d-tmp;
+        }
+        while(c.num[c.num[0]]==0&&c.num[0]>1) c.num[0]--;
+        return c;
+    }
+    bignum& operator=(const int b){
+        char str[Size];
+        sprintf(str,"%d",b);
+        return *this=str;
+    }
+    bignum& operator=(const char *str){
+        int len=strlen(str),k=1;
+        memset(num,0,sizeof(num));
+        num[0]=1;
+        for(int i=len-1;i>=0;i--){
+            if(k==10000){
+                k=1;
+                num[0]++;
+            }
+            num[num[0]]+=k*(str[i]-'0');
+            k*=10;
+        }
+        return *this;
+    }
+    bignum operator+(const bignum &b)const{
+        bignum c;
+        memset(c.num,0,sizeof(c.num));
+        c.num[0]=max(num[0],b.num[0]);
+        for(int i=1;i<=c.num[0];i++){
+            c.num[i]+=num[i]+b.num[i];
+            c.num[i+1]+=c.num[i]/10000;
+            c.num[i]%=10000;
+        }
+        if(c.num[c.num[0]+1]>0) c.num[0]++;
+        return c;
+    }
+    bignum operator*(const bignum &b)const{
+        bignum c;
+        memset(c.num,0,sizeof(c.num));
+        c.num[0]=num[0]+b.num[0]+1;
+        for(int i=1;i<=num[0];i++)
+            for(int j=1;j<=b.num[0];j++){
+                c.num[i+j-1]+=num[i]*b.num[j];
+                c.num[i+j]+=c.num[i+j-1]/10000;
+                c.num[i+j-1]%=10000;
+            }
+        while(c.num[c.num[0]]==0&&c.num[0]>1) c.num[0]--;
+        return c;
+    }
+    bignum operator-(const bignum &b)const{
+        bignum c;
+        memset(c.num,0,sizeof(c.num));
+        c.num[0]=max(num[0],b.num[0]);
+        for(int i=1;i<=c.num[0];i++){
+            c.num[i]+=num[i]-b.num[i];
+            if(c.num[i]<0){
+                c.num[i+1]--;
+                c.num[i]+=10000;
+            }
+        }
+        while(c.num[c.num[0]]==0&&c.num[0]>1) c.num[0]--;
+        return c;
+    }
+    string str(){
+        string str;
+        char buffer[Size];
+        sprintf(buffer,"%d",num[num[0]]);
+        str+=buffer;
+        for(int i=num[0]-1;i>=1;i--){
+            sprintf(buffer,"%04d",num[i]);
+            str+=buffer;
+        } 
+        return str;
+    }
+    friend bignum pow(const bignum &a,const bignum &b){
+        bignum ans=1;
+        for(bignum i=0;i<b;i=i+1) ans=ans*a;
+        return ans;
+    }
+    friend bignum max(const bignum &a,const bignum &b){
+        return a>b?a:b;
+    }
+    friend bignum min(const bignum &a,const bignum &b){
+        return a<b?a:b;
+    }
+    friend istream& operator>>(istream &in,bignum &x){
+        string s;
+        in>>s;
+        x=s.c_str();
+        return in;
+    }
+    friend ostream& operator<<(ostream &out,bignum &x){
+        out<<x.str();
+        return out;
+    }
+};
